@@ -4,55 +4,60 @@ import "./extensions/IssueDisplayExtension.js";
 import "./extensions/MarkupExtension.js";
 import "./extensions/MarkupDisplayExtension.js";
 import "./extensions/Edit2dExtension.js";
+import SuperVizRoom, { Comments } from "@superviz/sdk"; // Importation de SuperViz SDK
+import { Presence3D, AutodeskPin } from "@superviz/autodesk-viewer-plugin"; // SuperViz Plugins pour Autodesk
 
-// fetches an access token from the server using an API endpoint and passes it to a callback function.
+const apiKey = "jos3rv4vdubdv293m30rmamdmo5xws"; // Remplace par ta clé API SuperViz
+const ROOM_ID = "live-autodesk-session"; // ID de la session en direct
+const PLAYER_ID = "player_" + Math.random().toString(36).substr(2, 9); // Génération d'un ID unique pour le participant
+
+// Fonction pour obtenir le token d'authentification
 async function getAccessToken(callback) {
   try {
-    // Fetch an access token from the server
     const resp = await fetch("./api/auth/token");
-    if (!resp.ok) {
-      throw new Error(await resp.text());
-    }
+    if (!resp.ok) throw new Error(await resp.text());
 
-    // Parse the JSON response containing the access token and its expiration
     const { access_token, expires_in } = await resp.json();
-
-    // Call the callback function with the access token and its expiration
     callback(access_token, expires_in);
   } catch (err) {
-    // Handle errors and display an alert
     alert("Could not obtain access token. See the console for more details.");
     console.error(err);
   }
 }
 
-// initializes an Autodesk viewer for displaying 3D models.
+// Fonction pour initialiser Autodesk Viewer et SuperViz
 export function initViewer(container) {
-  return new Promise(function (resolve, reject) {
+  return new Promise((resolve, reject) => {
     Autodesk.Viewing.Initializer({ getAccessToken }, function () {
       const config = {
         extensions: [
           "Autodesk.DocumentBrowser",
           "IssueExtension",
           "IssueDisplayExtension",
-          "MarkupExtension",
-          "MarkupDisplayExtension",
-          "Autodesk.Viewing.MarkupsCore",
-          "Autodesk.Viewing.MarkupsGui",
-          "Edit2dExtension",
+          //"MarkupExtension",
+          //"MarkupDisplayExtension",
+          //"Autodesk.Viewing.MarkupsCore",
+          //"Autodesk.Viewing.MarkupsGui",
+          //"Edit2dExtension",
         ],
       };
       const viewer = new Autodesk.Viewing.GuiViewer3D(container, config);
       viewer.start();
       viewer.setTheme("light-theme");
-      resolve(viewer);
+
+      // Initialisation de SuperViz une fois que Autodesk Viewer est prêt
+      initializeSuperViz(viewer)
+        .then(() => {
+          resolve(viewer);
+        })
+        .catch(reject);
     });
   });
 }
 
-// loads a 3D model into an Autodesk viewer.
+// Fonction pour charger un modèle dans Autodesk Viewer
 export function loadModel(viewer, urn) {
-  return new Promise(function (resolve, reject) {
+  return new Promise((resolve, reject) => {
     function onDocumentLoadSuccess(doc) {
       resolve(viewer.loadDocumentNode(doc, doc.getRoot().getDefaultGeometry()));
     }
@@ -66,4 +71,36 @@ export function loadModel(viewer, urn) {
       onDocumentLoadFailure
     );
   });
+}
+
+// Fonction pour initialiser SuperViz avec Autodesk Viewer
+async function initializeSuperViz(viewer) {
+  try {
+    const superviz = await SuperVizRoom(apiKey, {
+      roomId: ROOM_ID,
+      participant: {
+        id: PLAYER_ID,
+        name: "Collaborateur", // Nom du participant
+      },
+      group: {
+        id: "autodesk-group",
+        name: "Autodesk Collaboration Session",
+      },
+    });
+
+    // Ajout de la présence 3D dans Autodesk Viewer
+    const presence = new Presence3D(viewer);
+    superviz.addComponent(presence);
+
+    // Ajout des pins/commentaires dans Autodesk Viewer
+    const pinAdapter = new AutodeskPin(viewer);
+    const comments = new Comments(pinAdapter, {
+      buttonLocation: "top-right", // Localisation du bouton de commentaire
+    });
+    superviz.addComponent(comments);
+
+    console.log("SuperViz session initialized");
+  } catch (err) {
+    console.error("Error initializing SuperViz:", err);
+  }
 }

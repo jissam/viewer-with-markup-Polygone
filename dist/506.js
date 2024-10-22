@@ -1,0 +1,1 @@
+"use strict";(self.webpackChunkviewer=self.webpackChunkviewer||[]).push([[506],{4506:(e,r,i)=>{i.r(r),i.d(r,{default:()=>t});var s=i(5194);const t=(0,s.e)(((e,r)=>{(0,s.i)(),r.exports={remoteConfig:{apiUrl:"https://dev.nodeapi.superviz.com",conferenceLayerUrl:"https://video-frame.superviz.com/lab/index.html"}}}))()}}]);
